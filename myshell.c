@@ -28,69 +28,84 @@ as you not need to use any features for this assignment that are supported by C+
 #define MAXLEN 1000 // max number of letters to be supported
 #define MAXLIST 100 // max number of commands to be supported
 
-typedef enum{PARALLEL=1,SEQUENTIAL=2,REDIRECTION=3,SIMPLE=4,} command_type;
+typedef enum{NONE=0,PARALLEL=1,SEQUENTIAL=2,REDIRECTION=3,SIMPLE=4,EXIT=-1} command_type;
 
 int parseInput(char inputString[])
 {
 	// This function will parse the input string into multiple commands or a single command with arguments depending on the delimiter (&&, ##, >, or spaces).
 	// It will return the type of the command based on the delimiter (Simple Command , Sequential Commands, Parallel Commands , Redirection).
 	
-	char inputString_copy[MAXLEN];
-	
-	//Make a copy of the input
-	strcpy(inputString_copy,inputString);
-	
-	//Initialise the ptrs 
+	//First check for 'exit' or ''
 
-	//Points to the next part after delimiter
-	char *in_ptr=inputString_copy;
-
-	//Points to the substring
-	char *out_ptr;
-	
-	out_ptr=strsep(&in_ptr,"&&");
-	
 	command_type ret_val;
-	if(out_ptr!=NULL)
-	{	
-		//Not a empty input
-		if(in_ptr==NULL)
-		{
-			// Does not have && as the delimiter
-			in_ptr=input;
-			out_ptr=strsep(&in_ptr,"##");
-			
+
+	if(strcmp("exit",inputString)==0) // When user uses exit command.
+	{
+		ret_val = EXIT;
+	}
+	else if(strlen(inputString)==0)
+	{
+		ret_val = NONE;
+	}
+	else
+	{
+	
+		char inputString_copy[MAXLEN];
+	
+		//Make a copy of the input
+		strcpy(inputString_copy,inputString);
+	
+		//Initialise the ptrs 
+
+		//Points to the next part after delimiter
+		char *in_ptr=inputString_copy;
+
+		//Points to the substring
+		char *out_ptr;
+	
+		out_ptr=strsep(&in_ptr,"&&");
+
+		command_type ret_val;
+		if(out_ptr!=NULL)
+		{	
+			//Not a empty input
 			if(in_ptr==NULL)
 			{
-				// Does not have ## as the delimiter
+				// Does not have && as the delimiter
 				in_ptr=input;
-				out_ptr=strsep(&in_ptr,">");
-				
+				out_ptr=strsep(&in_ptr,"##");
+
 				if(in_ptr==NULL)
 				{
-					// Does not have > or ## or && as the delimiter
-					ret_val = SIMPLE;
+					// Does not have ## as the delimiter
+					in_ptr=input;
+					out_ptr=strsep(&in_ptr,">");
+
+					if(in_ptr==NULL)
+					{
+						// Does not have > or ## or && as the delimiter
+						ret_val = SIMPLE;
+					}
+					else
+					{
+						//Has > as delimiter
+						ret_val = REDIRECTION;
+					}
 				}
 				else
 				{
-					//Has > as delimiter
-					ret_val = REDIRECTION;
+					//Has ## as delimiter
+					ret_val = SEQUENTIAL;
 				}
 			}
-			else
-			{
-				//Has ## as delimiter
-				ret_val = SEQUENTIAL;
+			else	
+			{	
+				//Has && as the delimiter
+				ret_val = PARALLEL;
 			}
+
 		}
-		else
-		{
-			//Has && as the delimiter
-			ret_val = PARALLEL;
-		}
-				
 	}
-	
 	return ret_val;	
 	
 }
@@ -168,301 +183,237 @@ void executeCommand(char *input)
 			//Parent(Terminal) waits for the child to terminate
 			int *wstatus=(int*)malloc(sizeof(int));
 			wait(wstatus);
+			free(wstatus);
 		}
 	}
+
+	//Free the memory allocated on heap
+	for(int i=0;i<MAXLIST;i++)
+		free(argv[i]);
 }
 
 void executeParallelCommands(char *input)
 {
 // This function will fork a new process to execute a command
 	
+	char *argv[MAXLIST];
+	char *out_ptr1;
+	char *in_ptr1=input;
+	char *out_ptr2;
 	
-	char *argv[20][20];
-	char *out_ptr;
-	char *in_ptr=input;
-	char *ptr;
-	
-	for(int i=0;i<20;i++)
-		for(int j=0;j<20;j++)
-			argv[j][i]=(char*)malloc(sizeof(char)*20);
+	for(int i=0;i<MAXLIST;i++)
+		argv[i]=(char*)malloc(sizeof(char)*MAXLEN);
 	
 	int i=0;
 	
+	out_ptr1=strsep(&in_ptr1,"&&");
 	
-	out_ptr=strsep(&in_ptr,"&&");
+	char *in_ptr2;
 	
-	char *cptr;
-	int j=0;
-	while(out_ptr!=NULL)
-		{
-			i=0;
+	while(out_ptr1!=NULL)
+	{
+		i=0;
+			
+		in_ptr2=out_ptr1;
+		out_ptr2=strsep(&in_ptr2," ");
 			
 			
-			cptr=out_ptr;
-			ptr=strsep(&cptr," ");
-			
-			
-			while(ptr!=NULL)
+		while(out_ptr2!=NULL)
+		{	
+			if(strcmp(out_ptr2,"")!=0)
 			{
-				
-				if(strcmp(ptr,"")!=0)
-				{
-					strcpy(argv[j][i],ptr);
-					i+=1;
-				}
-				ptr=strsep(&cptr," ");
+				strcpy(argv[i],out_ptr2);
+				i+=1;
 			}
-			
-			
-			argv[j][i]=NULL;
-			
-			if(in_ptr!=NULL)
-			{
-				in_ptr++;
-			}
-			out_ptr=strsep(&in_ptr,"&&");
-			
-			
-			j+=1;
-			
-			
+			out_ptr2=strsep(&in_ptr2," ");
 		}
-		
-		
-		int flag=0;
-		for(int i=0;i<j;i++)
+			
+			
+		argv[i]=NULL;
+			
+		if(in_ptr1!=NULL)
 		{
-		//	printf("%s\n",argv[i][0]);
-			if(strcmp(argv[i][0],"cd")==0)
-			{
-				if(argv[0][2]==NULL)
-				{
-					
-					size_t s=100;
-					char *path=(char*)malloc(sizeof(char)*20);
-					
-					strcat(path,argv[i][1]);
-					chdir(path);
-				}
-				else
-					printf("Shell: Incorrect command\n");
+			in_ptr1++;
+		}
+		out_ptr1=strsep(&in_ptr1,"&&");
+		
+		if(strcmp(argv[0],"cd")==0)
+		{
+			if(argv[2]==NULL)
+			{	
+				chdir(argv[1]);
 			}
 			else
-			{
-					if(fork()==0)
-					{	
-						
-						signal(SIGINT,signalhandler_int);
-						signal(SIGINT,signalhandler_tstp);
-						execvp(argv[i][0],argv[i]);
-						printf("Shell: Incorrect command\n");
-						exit(1);
-					
-					}
-			}	
+				printf("Shell: Incorrect command\n");
 		}
-		int *wstatus=(int*)malloc(sizeof(int));
-		wait(wstatus);
-		
+		else
+		{
+			if(fork()==0)
+			{	
+						
+				signal(SIGINT,signalhandler_int);
+				signal(SIGINT,signalhandler_tstp);
+					
+				execvp(argv[0],argv);
+				printf("Shell: Incorrect command\n");
+				exit(1);
+				
+			}
+		}	
+
+	}
+
+	//After all the child processes are created we wait for all of them to die
+	int *wstatus=(int*)malloc(sizeof(int));
+
+	//Wait returns the pid of terminated child
+	//the moment all child are terminated ,the condition becomes False 
+	while(wait(wstatus)>0);
+
+	// Cleanup the memory
+	free(wstatus);
+
+	for(int i=0;i<MAXLIST;i++)
+		free(argv[i]);
 		
 	
 }
+
 
 void executeSequentialCommands(char *input)
 {	
 	// This function will run multiple commands in sequential order
 		
+		char *argv[MAXLIST];
+	char *out_ptr1;
+	char *in_ptr1=input;
+	char *out_ptr2;
 	
-	char *argv[20][20];
-	char *out_ptr;
-	char *in_ptr=input;
-	char *ptr;
-	
-	for(int i=0;i<20;i++)
-		for(int j=0;j<20;j++)
-			argv[j][i]=(char*)malloc(sizeof(char)*200);
+	for(int i=0;i<MAXLIST;i++)
+		argv[i]=(char*)malloc(sizeof(char)*MAXLEN);
 	
 	int i=0;
 	
+	out_ptr1=strsep(&in_ptr1,"&&");
 	
-	out_ptr=strsep(&in_ptr,"##");
+	char *in_ptr2;
 	
-	char *cptr;
-	int j=0;
-	while(out_ptr!=NULL)
-		{
-			i=0;
+	while(out_ptr1!=NULL)
+	{
+		i=0;
+			
+		in_ptr2=out_ptr1;
+		out_ptr2=strsep(&in_ptr2," ");
 			
 			
-			cptr=out_ptr;
-			ptr=strsep(&cptr," ");
-			
-			
-			while(ptr!=NULL)
+		while(out_ptr2!=NULL)
+		{	
+			if(strcmp(out_ptr2,"")!=0)
 			{
-				//printf("%s",ptr);
-				if(strcmp(ptr,"")!=0)
-				{				
-					strcpy(argv[j][i],ptr);
-					i+=1;
-				}
-				ptr=strsep(&cptr," ");
+				strcpy(argv[i],out_ptr2);
+				i+=1;
+			}
+			out_ptr2=strsep(&in_ptr2," ");
+		}
+			
+			
+		argv[i]=NULL;
+			
+		if(in_ptr1!=NULL)
+		{
+			in_ptr1++;
+		}
+		out_ptr1=strsep(&in_ptr1,"&&");
+		
+		if(strcmp(argv[0],"cd")==0)
+		{
+			if(argv[2]==NULL)
+			{	
+				chdir(argv[1]);
+			}
+			else
+				printf("Shell: Incorrect command\n");
+		}
+		else
+		{
+			if(fork()==0)
+			{	
+						
+				signal(SIGINT,signalhandler_int);
+				signal(SIGINT,signalhandler_tstp);
+					
+				execvp(argv[0],argv);
+				printf("Shell: Incorrect command\n");
+				exit(1);
 				
 			}
-			
-			
-			argv[j][i]=NULL;
-			
-			
-			if(in_ptr!=NULL)
-			{
-				in_ptr++;
-			}
-			out_ptr=strsep(&in_ptr,"##");
-			
-			//Start
-			if(strcmp(argv[j][0],"cd")==0)
-			{
-				if(argv[j][2]==NULL)
-				{
-					
-					
-					//char *path=(char*)malloc(sizeof(char)*200);
-					
-					//strcat(path,argv[j][1]);
-					chdir(argv[j][1]);
-				}
-				else
-				{
-					printf("Shell: Incorrect command\n");
-				}
-			}
 			else
 			{
-				if(fork()==0)
-				{
-					
-					signal(SIGINT,signalhandler_int);
-					signal(SIGINT,signalhandler_tstp);
-					
-					execvp(argv[j][0],argv[j]);
-					printf("Shell: Incorrect command\n");
-					exit(1);
-					
-				}
-				else
-				{
-					int *wstatus=(int*)malloc(sizeof(int));
-					wait(wstatus);
-					free(wstatus);
-		
-				}
-			}//end
-			
-			j+=1;
-			
-			
-		}
-		
-		/*
-		int flag=0;
-		for(int i=0;i<j;i++)
-		{
-			
-			if(strcmp(argv[i][0],"cd")==0)
-			{
-				if(argv[i][2]==NULL)
-				{
-					
-					size_t s=100;
-					char *path=(char*)malloc(sizeof(char)*20);
-					
-					printf("%s %s--\n",argv[i][0],argv[i][1]);
-					//strcat(path,argv[i][1]);
-					//chdir(path);
-				}
-				else
-				{
-					printf("Shell: Incorrect command\n");
-				}
+				// The parent waits for the first command to execute completely
+				// Then executes next command
+				int *wstatus=(int*)malloc(sizeof(int));
+				wait(wstatus);
+				free(wstatus);
 			}
-			else
-			{
-				printf("%s",argv[i][0]);
-				int k=1;
-				while(argv[i][k]!=NULL)
-				{
-					printf("%s-",argv[i][k]);
-					k+=1;
-				}
-				//if(fork()==0)
-				//{
-					
-					//signal(SIGINT,signalhandler_int);
-					//signal(SIGINT,signalhandler_tstp);
-					
-					//execvp(argv[i][0],argv[i]);
-					//printf("Shell: Incorrect command\n");
-					//exit(1);
-					
-				//}
-				//else
-				//{
-				//	int *wstatus=(int*)malloc(sizeof(int));
-				//	wait(wstatus);
-				//	free(wstatus);
+		}	
+
+	}
+
+	for(int i=0;i<MAXLIST;i++)
+		free(argv[i]);
 		
-				//}
-			}
-		}
-	*/
+
+		
 }
 
 void executeCommandRedirection(char *input)
 {
 	// This function will run a single command with output redirected to an output file specificed by user
-	char *out_ptr;
-	char *in_ptr=input;
-	char *cptr;
+	char *out_ptr1;
+	char *in_ptr1=input;
+	char *in_ptr2;
 	char *argv[20];
 	
-	for(int i=0;i<20;i++)
-		argv[i]=(char*)malloc(sizeof(char)*200);
+	for(int i=0;i<MAXLIST;i++)
+		argv[i]=(char*)malloc(sizeof(char)*MAXLEN);
 	
 	
-	out_ptr=strsep(&in_ptr,">");
+	out_ptr1=strsep(&in_ptr1,">");
 	
-	cptr=input;
-	char *ptr;
+	in_ptr2=input;
+
+	char *out_ptr2;
 	int i=0;
 	
-	ptr=strsep(&cptr," ");
-	while(ptr!=NULL)
-			{
-				//printf("%s",ptr);
-				if(strcmp(ptr,"")!=0)
-				{				
-					strcpy(argv[i],ptr);
-					i+=1;
-				}
-				ptr=strsep(&cptr," ");
-				
-			}
+	// Extract the command and args from LHS
+	out_ptr2=strsep(&in_ptr2," ");
+	while(out_ptr2!=NULL)
+	{		
+		if(strcmp(out_ptr2,"")!=0)
+		{				
+			strcpy(argv[i],out_ptr2);
+			i+=1;
+		}
+		out_ptr2=strsep(&in_ptr2," ");
+	}
 	argv[i]=NULL;
 	
-	//printf("%s",in_ptr+1);
+	// Fork a new process
 	if(fork()==0)
 	{
 		signal(SIGINT,signalhandler_int);
 		signal(SIGINT,signalhandler_tstp);
 		
-		
-		
-		int redirect_fd=open(in_ptr+1,O_CREAT | O_TRUNC | O_WRONLY ); 
+		// File descriptor for file to which the output should be redirected
+		int redirect_fd=open(in_ptr1+1,O_CREAT | O_TRUNC | O_WRONLY ); 
+
+		// Make the stdout file descriptor point to the file
 		dup2(redirect_fd,STDOUT_FILENO);
+
+		// Close the old file descriptor (just for safety)
 		close(redirect_fd);
 		
-		
+		//Execute the command
 		execvp(argv[0],argv);
 		
 		printf("Shell: Incorrect command\n");
@@ -471,8 +422,7 @@ void executeCommandRedirection(char *input)
 	else
 	{
 		int *wstatus=(int*)malloc(sizeof(int));
-		wait(wstatus);
-		
+		wait(wstatus);	
 	}
 	
 }
@@ -481,62 +431,55 @@ int main()
 {
 	// Initial declarations
 	
+	// Signal Handlers for TERMINAl(IGNORE SIGNALS!!)
 	signal(SIGINT,SIG_IGN);
 	signal(SIGTSTP,SIG_IGN);
+
+	char currentWorkingDirectory[MAXLEN];
 	
-	size_t s=100;
-	char currentWorkingDirectory[200];
-	
-	size_t bufsize = 200;
+	size_t bufsize = MAXLEN;
     size_t characters;
     	
-    	char *inputString=(char*)malloc(sizeof(char)*200);
-    	int execFlag = 0;
+    char *inputString=(char*)malloc(sizeof(char)*MAXLEN);
+    command_type type = NONE;
 
 	while(1)	// This loop will keep your shell running until user exits.
 	{
 		// Print the prompt in format - currentWorkingDirectory$
-		getcwd(currentWorkingDirectory,s);
+		getcwd(currentWorkingDirectory,MAXLEN);
 		printf("%s$",currentWorkingDirectory);
 		
 		// accept input with 'getline()'
 
 		characters=getline(&inputString,&bufsize,stdin);
 		
+		// For the newline(ENTER)
 		inputString[characters-1]='\0';
 		
-		
 		// Parse input with 'strsep()' for different symbols (&&, ##, >) and for spaces.
-		execFlag=parseInput(inputString); 
+		// And return the type of the function
+		type = parseInput(inputString); 
 			
-		
-		
-		
-		if(strcmp("exit",inputString)==0) // When user uses exit command.
+		if(type == EXIT) // When user uses exit command.
 		{
 			printf("Exiting shell...\n");
 			break;
 		}
-		else if(strlen(inputString)==0)
+		else if(type == NONE)
 		{
 			continue;
 		}
 		else
 		{
-		
-		
-			if(execFlag==1)
+			if(type == PARALLEL)
 				executeParallelCommands(inputString);		// This function is invoked when user wants to run multiple commands in parallel (commands separated by &&)
-			else if(execFlag==2)
+			else if(type == SEQUENTIAL)
 				executeSequentialCommands(inputString);	// This function is invoked when user wants to run multiple commands sequentially (commands separated by ##)
-			else if(execFlag==3)
+			else if(type == REDIRECTION)
 				executeCommandRedirection(inputString);	// This function is invoked when user wants redirect output of a single command to and output file specificed by user
-			else
+			else if(type == SIMPLE)
 				executeCommand(inputString);		// This function is invoked when user wants to run a single commands
-		}
-		
-		
-				
+		}			
 	}
 	
 	return 0;
