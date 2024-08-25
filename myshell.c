@@ -95,13 +95,13 @@ int parseInput(char inputString[])
 	
 }
 
-
+//Signal Handler for CTRL+Z (SIGTSTP) 
 void signalhandler_tstp(int sig)
 {
-
 	exit(1);
 }
 
+//Signal Handler for CTRL+C(SIGINT) 
 void signalhandler_int(int sig)
 {
 	exit(1);
@@ -111,18 +111,22 @@ void signalhandler_int(int sig)
 void executeCommand(char *input)
 {
 	// This function will fork a new process to execute a command
-	
-	
+	// Will seperate the commands and args as well
 	
 	char *argv[MAXLIST];
 	char *out_ptr;
 	char *in_ptr=input;
 	
-	for(int i=0;i<20;i++)
+	// Dynamically allocate the memory for each argument
+	for(int i=0;i<MAXLIST;i++)
 		argv[i]=(char*)malloc(sizeof(char)*MAXLEN);
 	
 	int i=0;
 	out_ptr=strsep(&in_ptr," ");
+	
+	// Go through the input and seperate the commands and arguments based on 'space'
+	// as delimiter(SIMPLE COMMAND)
+
 	while(out_ptr!=NULL)
 	{
 		strcpy(argv[i],out_ptr);
@@ -130,10 +134,13 @@ void executeCommand(char *input)
 		i+=1;
 	}
 	
+	// NULL terminated argv
 	argv[i]=NULL;
-	
+
+	//Check if it is a built in command like 'cd'
 	if(strcmp(argv[0],"cd")==0)
 	{
+		// Check if it has only one argument
 		if(argv[2]==NULL)
 		{
 			chdir(argv[1]);
@@ -143,17 +150,22 @@ void executeCommand(char *input)
 	}
 	else
 	{
+		// Fork a new process
 		if(fork()==0)
 		{
+			//Signal handler for child process
 			signal(SIGINT,signalhandler_int);
 			signal(SIGINT,signalhandler_tstp);
+
 			execvp(argv[0],argv);
+			
+			// Will execute only if execvp fails
 			printf("Shell: Incorrect command\n");
 			exit(1);
 		}
 		else
 		{
-		
+			//Parent(Terminal) waits for the child to terminate
 			int *wstatus=(int*)malloc(sizeof(int));
 			wait(wstatus);
 		}
