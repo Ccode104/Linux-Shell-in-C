@@ -21,54 +21,77 @@ as you not need to use any features for this assignment that are supported by C+
 #include <string.h>
 #include <stdlib.h>			// exit()
 #include <unistd.h>			// fork(), getpid(), exec()
-#include <sys/wait.h>			// wait()
+#include <sys/wait.h>		// wait()
 #include <signal.h>			// signal()
 #include <fcntl.h>			// close(), open()
 
-#define MAXCOM 1000 // max number of letters to be supported
+#define MAXLEN 1000 // max number of letters to be supported
 #define MAXLIST 100 // max number of commands to be supported
 
+typedef enum{PARALLEL=1,SEQUENTIAL=2,REDIRECTION=3,SIMPLE=4,} command_type;
 
 int parseInput(char inputString[])
 {
 	// This function will parse the input string into multiple commands or a single command with arguments depending on the delimiter (&&, ##, >, or spaces).
+	// It will return the type of the command based on the delimiter (Simple Command , Sequential Commands, Parallel Commands , Redirection).
 	
-	char input[200];
+	char inputString_copy[MAXLEN];
 	
-	strcpy(input,inputString);
+	//Make a copy of the input
+	strcpy(inputString_copy,inputString);
 	
-	char *in_ptr=input;
+	//Initialise the ptrs 
+
+	//Points to the next part after delimiter
+	char *in_ptr=inputString_copy;
+
+	//Points to the substring
 	char *out_ptr;
 	
 	out_ptr=strsep(&in_ptr,"&&");
 	
+	command_type ret_val;
 	if(out_ptr!=NULL)
 	{	
-		//Has &&
+		//Not a empty input
 		if(in_ptr==NULL)
 		{
+			// Does not have && as the delimiter
 			in_ptr=input;
 			out_ptr=strsep(&in_ptr,"##");
 			
 			if(in_ptr==NULL)
 			{
+				// Does not have ## as the delimiter
 				in_ptr=input;
 				out_ptr=strsep(&in_ptr,">");
 				
 				if(in_ptr==NULL)
-					return 4;
+				{
+					// Does not have > or ## or && as the delimiter
+					ret_val = SIMPLE;
+				}
 				else
-					return 3;
+				{
+					//Has > as delimiter
+					ret_val = REDIRECTION;
+				}
 			}
 			else
-				return 2;
+			{
+				//Has ## as delimiter
+				ret_val = SEQUENTIAL;
+			}
 		}
 		else
-			return 1;
+		{
+			//Has && as the delimiter
+			ret_val = PARALLEL;
+		}
 				
 	}
 	
-		
+	return ret_val;	
 	
 }
 
@@ -91,12 +114,12 @@ void executeCommand(char *input)
 	
 	
 	
-	char *argv[20];
+	char *argv[MAXLIST];
 	char *out_ptr;
 	char *in_ptr=input;
 	
 	for(int i=0;i<20;i++)
-		argv[i]=(char*)malloc(sizeof(char)*200);
+		argv[i]=(char*)malloc(sizeof(char)*MAXLEN);
 	
 	int i=0;
 	out_ptr=strsep(&in_ptr," ");
@@ -113,12 +136,7 @@ void executeCommand(char *input)
 	{
 		if(argv[2]==NULL)
 		{
-			
-			size_t s=100;
-			char *path=(char*)malloc(sizeof(char)*20);
-			
-			strcat(path,argv[1]);
-			chdir(path);
+			chdir(argv[1]);
 		}
 		else
 			printf("Shell: Incorrect command\n");
